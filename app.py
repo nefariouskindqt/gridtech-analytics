@@ -10,16 +10,11 @@ st.set_page_config(
     layout="wide"
 )
 
-# 1. Database Connection Helper using Streamlit Secrets
+# 1. Database Connection Helper using Streamlit Secrets (Updated for Supabase)
 @st.cache_resource
 def get_connection():
-    return psycopg2.connect(
-        host=st.secrets["DB_HOST"],
-        database=st.secrets["DB_NAME"],
-        user=st.secrets["DB_USER"],
-        password=st.secrets["DB_PASS"],
-        port=st.secrets["DB_PORT"]
-    )
+    # Supabase uses a single URI connection string
+    return psycopg2.connect(st.secrets["DATABASE_URL"])
 
 conn = get_connection()
 
