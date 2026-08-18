@@ -1,27 +1,23 @@
 import streamlit as st
 import pandas as pd
-import psycopg2
 import plotly.express as px
 
-# Page configuration
+# --- Page configuration ---
 st.set_page_config(
     page_title="GridTech Energy Analytics",
     page_icon="⚡",
     layout="wide"
 )
 
-# 1. Database Connection Helper using Streamlit Secrets (Updated for Supabase)
-@st.cache_resource
-def get_connection():
-    # Supabase uses a single URI connection string
-    return psycopg2.connect(st.secrets["DATABASE_URL"])
+# --- 1. Database Connection ---
+# This natively uses Streamlit's connection pooling and reads directly 
+# from the [connections.postgresql] block in your Secrets!
+conn = st.connection("postgresql", type="sql")
 
-conn = get_connection()
-
-# Helper function to run SQL queries into DataFrames
+# Helper function to run SQL queries and return a Pandas DataFrame
 def run_query(query):
-    with conn.cursor() as cur:
-        return pd.read_sql(query, conn)
+    # ttl="10m" caches the data for 10 minutes so it doesn't overload your database
+    return conn.query(query, ttl="10m")
 
 # --- Dashboard Header ---
 st.title("⚡ GridTech Power & Sales Dashboard")
@@ -44,6 +40,7 @@ JOIN products p ON oi.product_id = p.product_id;
 df_kpi = run_query(kpi_query)
 
 col1, col2, col3 = st.columns(3)
+# df_kpi['column_name'][0] gets the first row's value from the dataframe
 col1.metric("Total Orders Placed", f"{df_kpi['total_orders'][0]:,}")
 col2.metric("Active Customers", f"{df_kpi['total_active_customers'][0]:,}")
 col3.metric("Gross Revenue", f"₱{df_kpi['total_revenue'][0]:,.2f}")
@@ -106,11 +103,13 @@ st.divider()
 # --- Section 3: Telemetry Time-Series Analysis ---
 st.subheader("🔋 IoT System Telemetry Monitor")
 
+# Get list of unique systems for the dropdown menu
 systems_query = "SELECT DISTINCT system_id FROM iot_telemetry ORDER BY system_id;"
 available_systems = run_query(systems_query)["system_id"].tolist()
 
 selected_system = st.selectbox("Select System ID:", available_systems)
 
+# Fetch time-series data for the selected system
 telemetry_query = f"""
 SELECT 
     timestamp,
@@ -125,6 +124,7 @@ ORDER BY timestamp ASC;
 """
 df_telemetry = run_query(telemetry_query)
 
+# Line Chart
 fig_telemetry = px.line(
     df_telemetry,
     x="timestamp",
@@ -134,5 +134,6 @@ fig_telemetry = px.line(
 )
 st.plotly_chart(fig_telemetry, use_container_width=True)
 
+# Raw Data Table
 with st.expander("View Recent Logs Data Table"):
     st.dataframe(df_telemetry.tail(100), use_container_width=True)
