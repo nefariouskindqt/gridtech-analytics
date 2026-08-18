@@ -1,0 +1,13 @@
+name: Keep Streamlit App Awake
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Runs every 6 hours
+  workflow_dispatch: # Allows you to run it manually
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Streamlit App
+        # Using wget --spider to just check the headers without following infinite redirects
+        run: wget --spider --quiet https://gridtech-analytics-e7ojtebblzg8mc9gvdmsux.streamlit.app/ || true
