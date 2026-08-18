@@ -10,9 +10,9 @@ st.set_page_config(
 )
 
 # --- 1. Database Connection ---
-# This natively uses Streamlit's connection pooling and reads directly 
-# from the [connections.postgresql] block in your Secrets!
-conn = st.connection("postgresql", type="sql")
+# We use st.secrets to explicitly pass the exact Supabase connection string.
+# This completely bypasses any TOML configuration formatting errors!
+conn = st.connection("postgresql", type="sql", url=st.secrets["DATABASE_URL"])
 
 # Helper function to run SQL queries and return a Pandas DataFrame
 def run_query(query):
