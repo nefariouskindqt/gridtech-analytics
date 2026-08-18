@@ -1,17 +1,47 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import base64
 
-# --- Page configuration ---
+# --- 1. Page configuration ---
 st.set_page_config(
     page_title="GridTech Energy Analytics",
     page_icon="⚡",
     layout="wide"
 )
 
-# --- 1. Database Connection ---
+# --- 2. Custom Background Function ---
+def set_background(image_file):
+    try:
+        with open(image_file, "rb") as f:
+            encoded_string = base64.b64encode(f.read()).decode()
+        
+        # Adds the background image with a dark tinted overlay for readability
+        css = f"""
+        <style>
+        .stApp {{
+            background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), 
+                        url("data:image/jpg;base64,{encoded_string}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }}
+        /* Make the top header transparent so it blends in */
+        header[data-testid="stHeader"] {{
+            background-color: transparent !important;
+        }}
+        </style>
+        """
+        st.markdown(css, unsafe_allow_html=True)
+    except FileNotFoundError:
+        st.warning(f"Background image '{image_file}' not found. Please ensure it is uploaded to your GitHub repository.")
+
+# Call the function with your image's exact file name
+set_background("image_4a4d08.jpg")
+
+
+# --- 3. Database Connection ---
 # We use st.secrets to explicitly pass the exact Supabase connection string.
-# This completely bypasses any TOML configuration formatting errors!
 conn = st.connection("postgresql", type="sql", url=st.secrets["DATABASE_URL"])
 
 # Helper function to run SQL queries and return a Pandas DataFrame
@@ -19,16 +49,17 @@ def run_query(query):
     # ttl="10m" caches the data for 10 minutes so it doesn't overload your database
     return conn.query(query, ttl="10m")
 
-# --- Dashboard Header ---
+
+# --- 4. Dashboard Header ---
 st.title("⚡ GridTech Power & Sales Dashboard")
 st.markdown("Real-time monitoring and business intelligence driven by PostgreSQL.")
 
 st.divider()
 
-# --- Application Logic with Error Handling ---
-# We wrap the app in a try-except block so Streamlit doesn't redact the error!
+# --- 5. Application Logic with Error Handling ---
+# We wrap the app in a try-except block so Streamlit doesn't redact errors!
 try:
-    # --- Section 1: Top-Level Business KPIs ---
+    # --- Section A: Top-Level Business KPIs ---
     st.subheader("📊 Business Overview")
 
     kpi_query = """
@@ -43,14 +74,13 @@ try:
     df_kpi = run_query(kpi_query)
 
     col1, col2, col3 = st.columns(3)
-    # df_kpi['column_name'][0] gets the first row's value from the dataframe
     col1.metric("Total Orders Placed", f"{df_kpi['total_orders'][0]:,}")
     col2.metric("Active Customers", f"{df_kpi['total_active_customers'][0]:,}")
     col3.metric("Gross Revenue", f"₱{df_kpi['total_revenue'][0]:,.2f}")
 
     st.divider()
 
-    # --- Section 2: Sales & Revenue Visualizations ---
+    # --- Section B: Sales & Revenue Visualizations ---
     st.subheader("📈 Product & Regional Analytics")
 
     chart_col1, chart_col2 = st.columns(2)
@@ -78,7 +108,7 @@ try:
             color="revenue",
             color_continuous_scale="Blues"
         )
-        fig_prod.update_layout(yaxis=dict(autorange="reversed"))
+        fig_prod.update_layout(yaxis=dict(autorange="reversed"), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_prod, use_container_width=True)
 
     with chart_col2:
@@ -99,11 +129,12 @@ try:
             title="Customer Distribution by City",
             hole=0.4
         )
+        fig_city.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig_city, use_container_width=True)
 
     st.divider()
 
-    # --- Section 3: Telemetry Time-Series Analysis ---
+    # --- Section C: Telemetry Time-Series Analysis ---
     st.subheader("🔋 IoT System Telemetry Monitor")
 
     # Get list of unique systems for the dropdown menu
@@ -135,6 +166,7 @@ try:
         title=f"Power Output (Watts) Over Time for {selected_system}",
         labels={"timestamp": "Time", "power_watts": "Calculated Power (W)"}
     )
+    fig_telemetry.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_telemetry, use_container_width=True)
 
     # Raw Data Table
@@ -144,4 +176,4 @@ try:
 except Exception as e:
     # If the database connection fails, this will display the true error beautifully on the dashboard!
     st.error(f"🚨 **Database Connection Error:** {str(e)}")
-    st.info("Streamlit is reaching Supabase, but the connection is being rejected. Check the error message above for clues.")
+    st.info("Please verify your Supabase database is active and the connection string is correct in your Streamlit secrets.")
